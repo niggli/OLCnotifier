@@ -1,0 +1,6 @@
+/home/pi/OLCnotifier/OLCnotifier.log {
+        rotate 30
+        daily
+        compress
+        delaycompress
+}
