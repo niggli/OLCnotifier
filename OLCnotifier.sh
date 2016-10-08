@@ -13,6 +13,7 @@
 # 0.5a      01.07.2016  UN       Bugfix pushover notification Lars Buchs
 # 0.6a      03.07.2016  UN       Ignore 0km flights. Improve logging
 # 0.7a      11.08.2016  UN       Remove private data i.e. user keys, URLs
+# 0.8a      08.10.2016  UN       Send URL also, for automatic opening
 #
 
 # Outputs a string to the logfile, including a timestamp.
@@ -112,6 +113,7 @@ function processPage
                     curl -s \
                     --form-string "token=$APPTOKEN" \
                     --form-string "user=$RECEIVER1" \
+                    --form-string "url=$OLCFLIGHTLINK" \
                     --form-string "html=1" \
                     --form-string "message=$OLCPILOTNAME hat einen Flug hochgeladen: <a href=$OLCFLIGHTLINK>$OLCKILOMETER km am $OLCDATUM</a>" \
                     https://api.pushover.net/1/messages.json >> OLCnotifier.log
@@ -120,6 +122,7 @@ function processPage
                     curl -s \
                     --form-string "token=$APPTOKEN" \
                     --form-string "user=$RECEIVER2" \
+                    --form-string "url=$OLCFLIGHTLINK" \
                     --form-string "html=1" \
                     --form-string "message=$OLCPILOTNAME hat einen Flug hochgeladen: <a href=$OLCFLIGHTLINK>$OLCKILOMETER km am $OLCDATUM</a>" \
                     https://api.pushover.net/1/messages.json >> OLCnotifier.log
