@@ -14,6 +14,7 @@
 # 0.6a      03.07.2016  UN       Ignore 0km flights. Improve logging
 # 0.7a      11.08.2016  UN       Remove private data i.e. user keys, URLs
 # 0.8a      08.10.2016  UN       Send URL also, for automatic opening
+# 1.0       26.10.2016  UN       Add log output for 0km flights
 #
 
 # Outputs a string to the logfile, including a timestamp.
@@ -126,6 +127,11 @@ function processPage
                     --form-string "html=1" \
                     --form-string "message=$OLCPILOTNAME hat einen Flug hochgeladen: <a href=$OLCFLIGHTLINK>$OLCKILOMETER km am $OLCDATUM</a>" \
                     https://api.pushover.net/1/messages.json >> OLCnotifier.log
+
+                else
+                    # Zero kilometers, flight probably not yet processed
+                    # write to log file
+                    log "Flug mit 0.00km: $OLCFLIGHTID,$OLCDATUM,$OLCPILOTNAME"
 
                 fi
             fi
