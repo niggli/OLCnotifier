@@ -15,6 +15,7 @@
 # 0.7a      11.08.2016  UN       Remove private data i.e. user keys, URLs
 # 0.8a      08.10.2016  UN       Send URL also, for automatic opening
 # 1.0       26.10.2016  UN       Add log output for 0km flights
+# 1.1       28.03.2017  UN       Bugfix handling of 0km flights
 #
 
 # Outputs a string to the logfile, including a timestamp.
@@ -92,7 +93,7 @@ function processPage
                 # read rest of data. use xmllint with a xpath expression to find first <td> in i'th <tr>
                 OLCKILOMETER="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td[4]/text()' step4.txt | xargs)"
 
-                if [ "$OLCKILOMETER" != "0.00" ]; then
+                if [ "$OLCKILOMETER" != "0,00" ]; then
                     OLCDATUM="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td[1]/text()' step4.txt)"
                     OLCPILOTNAME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td[3]' step4.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
     
@@ -131,7 +132,7 @@ function processPage
                 else
                     # Zero kilometers, flight probably not yet processed
                     # write to log file
-                    log "Flug mit 0.00km: $OLCFLIGHTID,$OLCDATUM,$OLCPILOTNAME"
+                    log "Flug mit 0,00km: $OLCFLIGHTID,$OLCDATUM,$OLCPILOTNAME"
 
                 fi
             fi
