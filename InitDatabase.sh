@@ -23,6 +23,7 @@ function processPage
 
     # Download OLC SG Solothurn to file
     curl -o "OLCraw.txt" -s "$URL"
+	echo "Download begin: $URL"
 
     # Search OLCPlus table
     # sed works very differently on OSX and on Raspbian concerning the usage of "|" regexes. Workaround by two calls
@@ -48,6 +49,7 @@ function processPage
         if [ "$OLCFLIGHTID" != "" ]; then
             #write flight to database
             echo "$OLCFLIGHTID" >> newdatabase.txt
+			echo "New flight: $OLCFLIGHTID"
         fi
 
         #increment counter
@@ -77,3 +79,5 @@ processPage "$URL2"
 
 # All flights from URL 3
 processPage "$URL3"
+
+echo "processing done"

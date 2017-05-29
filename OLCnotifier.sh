@@ -16,6 +16,7 @@
 # 0.8a      08.10.2016  UN       Send URL also, for automatic opening
 # 1.0       26.10.2016  UN       Add log output for 0km flights
 # 1.1       28.03.2017  UN       Bugfix handling of 0km flights
+# 1.2       29.05.2017  UN       Add OLC-to-Vereinsflieger.de functionality
 #
 
 # Outputs a string to the logfile, including a timestamp.
@@ -96,11 +97,16 @@ function processPage
                 if [ "$OLCKILOMETER" != "0,00" ]; then
                     OLCDATUM="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td[1]/text()' step4.txt)"
                     OLCPILOTNAME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td[3]' step4.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
-    
-                    # Replace umlaute
+                    OLCSTARTTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td[8]/text()' step4.txt | xargs)"
+                    OLCLANDINGTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td[9]/text()' step4.txt | xargs)"
+
+                    # Replace umlaute, remove countrycode e.g. "Hans Muster (CH)"
                     OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xFC;/ue/')
                     OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xE4;/ae/')
                     OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xF6;/oe/')
+
+                    # Remove country code
+                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | grep -o "[A-Za-z.]\{1,\} [A-Za-z.]\{1,\} [A-Za-z.]\{0,\}" | xargs)
 
                     # generate link to flight
                     OLCFLIGHTLINK="http://www.onlinecontest.org/olc-2.0/gliding/flightinfo.html?dsId=$OLCFLIGHTID"
@@ -111,7 +117,7 @@ function processPage
                     # write to log file
                     log "Neuer Flug: $OLCFLIGHTID,$OLCDATUM,$OLCPILOTNAME,$OLCKILOMETER"
 
-                    # send notification User 1
+                    # send notification to user. Repeat this section or use groups for multiple recipients.
                     curl -s \
                     --form-string "token=$APPTOKEN" \
                     --form-string "user=$RECEIVER1" \
@@ -120,14 +126,16 @@ function processPage
                     --form-string "message=$OLCPILOTNAME hat einen Flug hochgeladen: <a href=$OLCFLIGHTLINK>$OLCKILOMETER km am $OLCDATUM</a>" \
                     https://api.pushover.net/1/messages.json >> OLCnotifier.log
 
-                    # send notification User 2
-                    curl -s \
-                    --form-string "token=$APPTOKEN" \
-                    --form-string "user=$RECEIVER2" \
-                    --form-string "url=$OLCFLIGHTLINK" \
-                    --form-string "html=1" \
-                    --form-string "message=$OLCPILOTNAME hat einen Flug hochgeladen: <a href=$OLCFLIGHTLINK>$OLCKILOMETER km am $OLCDATUM</a>" \
-                    https://api.pushover.net/1/messages.json >> OLCnotifier.log
+
+                    # correct flight in vereinsflieger.de
+                    if [ "$OLCPILOTNAME" == "$OLCCORRECTIONNAME" ]; then
+                        OLCPILOTNAMEURL=$(echo "$OLCPILOTNAME" | sed 's/ /%20/')
+                        log "In Vereinsflieger.de korrigieren: $OLCPILOTNAMEURL,$OLCSTARTTIME,$OLCLANDINGTIME"
+                        curl "$OLC2VEREINSFLIEGERURL?starttime=$OLCSTARTTIME&landingtime=$OLCLANDINGTIME&pilotname=$OLCPILOTNAMEURL" \
+                        >> OLCnotifier.log
+                    else
+                        log "Don't correct in Vereinsflieger: $OLCPILOTNAME,$OLCSTARTTIME,$OLCLANDINGTIME"
+                    fi
 
                 else
                     # Zero kilometers, flight probably not yet processed
