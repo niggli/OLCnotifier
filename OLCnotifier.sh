@@ -18,6 +18,7 @@
 # 1.1       28.03.2017  UN       Bugfix handling of 0km flights
 # 1.2       29.05.2017  UN       Add OLC-to-Vereinsflieger.de functionality
 # 1.3       15.09.2017  UN       Improve OLC-to-Vereinsflieger.de functionality
+# 1.4       18.09.2017  UN       Bugfix umlaute
 #
 
 # Outputs a string to the logfile, including a timestamp.
@@ -109,13 +110,13 @@ function processPage
                         OLCAIRFIELD="$AIRFIELD"
                     fi
 				
-                    # Replace umlaute, remove countrycode
-                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xFC;/ue/')
-                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xE4;/ae/')
-                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xF6;/oe/')
+                    # Replace umlaute
+                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xFC;/ü/')
+                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xE4;/ä/')
+                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xF6;/ö/')
 
                     # Remove country code e.g. "Hans Muster (CH)"
-                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | grep -o "[A-Za-z.]\{1,\} [A-Za-z.]\{1,\} [A-Za-z.]\{0,\}" | xargs)
+                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | grep -o "[A-Za-zäöüèé.-]\{1,\} [A-Za-zäöüéèà.-]\{1,\} [A-Za-zöäüéèà.-]\{0,\}" | xargs)
                     OLCAIRFIELD=$(echo "$OLCAIRFIELD" | grep -o "[A-Za-z -]\{1,\}" | head -1 | xargs)
 
                     # generate link to flight
