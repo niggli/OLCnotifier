@@ -19,6 +19,7 @@
 # 1.2       29.05.2017  UN       Add OLC-to-Vereinsflieger.de functionality
 # 1.3       15.09.2017  UN       Improve OLC-to-Vereinsflieger.de functionality
 # 1.4       18.09.2017  UN       Bugfix umlaute
+# 1.5       30.11.2017  UN       Add support for daily OLC pages with minimum KM value
 #
 
 # Outputs a string to the logfile, including a timestamp.
@@ -47,11 +48,32 @@ function processPage
     local URL="$1"
     local AIRFIELD="$2"
     local OLC2VEREINSFLIEGERURL="$3"
+    local TYPE="$4"
+	local KMLIMIT="$5"
 
     if [ "$URL" == "" ]; then
         outString = "No URL to process"
         return 0
     fi
+	
+    if [ "$TYPE" == "DAILY" ]; then
+        TD_OLCFLIGHTID=13
+        TD_OLCKILOMETER=5
+        TD_OLCDATUM=1
+        TD_OLCPILOTNAME=3
+        TD_OLCSTARTTIME=11
+        TD_OLCLANDINGTIME=12
+        TD_OLCAIRFIELD=8
+    else
+        TD_OLCFLIGHTID=10
+        TD_OLCKILOMETER=4
+        TD_OLCDATUM=1
+        TD_OLCPILOTNAME=3
+        TD_OLCSTARTTIME=8
+        TD_OLCLANDINGTIME=9
+        TD_OLCAIRFIELD=6
+    fi
+	
 
     # Download OLC from URL to file
     log "Download: $URL"
@@ -67,6 +89,9 @@ function processPage
 
     # Remove unneeded end
     sed 's/<\/tbody>.*/<\/tbody>/' <step3.txt >step4.txt
+	
+    # Remove not allowed entities nbsp
+    sed 's/&nbsp;/ /g' step4.txt > step5.txt
 
     # initialize variables
     OLCFLIGHTID="start"
@@ -76,7 +101,7 @@ function processPage
     while [ "$OLCFLIGHTID" != "" ] ; do
 
         # search for flight ID. Length assumed to be between 1 and 10.
-        OLCFLIGHTID="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td[10]' step4.txt | grep -o '?dsId=[0-9]\{1,10\}\">' | grep -o '[0-9]\{1,10\}')"
+        OLCFLIGHTID="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCFLIGHTID)']' step5.txt | grep -o '?dsId=[0-9]\{1,10\}\">' | grep -o '[0-9]\{1,10\}')"
 
         # compare to entry in database file
         KNOWN=0
@@ -95,17 +120,31 @@ function processPage
         if [ "$KNOWN" = 0 ]; then
             if [ "$OLCFLIGHTID" != "" ]; then
                 # read rest of data. use xmllint with a xpath expression to find first <td> in i'th <tr>
-                OLCKILOMETER="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td[4]/text()' step4.txt | xargs)"
-
-                if [ "$OLCKILOMETER" != "0,00" ]; then
-                    OLCDATUM="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td[1]/text()' step4.txt)"
-                    OLCPILOTNAME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td[3]' step4.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
-                    OLCSTARTTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td[8]/text()' step4.txt | xargs)"
-                    OLCLANDINGTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td[9]/text()' step4.txt | xargs)"
+                OLCKILOMETER="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCKILOMETER)']/text()' step5.txt | xargs | sed 's/\.//'| sed 's/,/\./')"
+				
+				if [ $(echo "$OLCKILOMETER > $KMLIMIT" | bc) -eq 1 ]; then
+                    if [ "$TYPE" == "DAILY" ]; then
+                        OLCDATUM="$(date +'%d.%m.%Y')"
+                    else
+                        OLCDATUM="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCDATUM)']/text()' step5.txt)"
+                    fi
+					
+                    OLCPILOTNAME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCPILOTNAME)']' step5.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
+                    #In some cases, pilot name is contained in <span> element
+					if [ "$OLCPILOTNAME" == "" ]; then
+						OLCPILOTNAME="$(xmllint --xpath 'string(/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCPILOTNAME)']/span[@class="pilot"]/@title)' step5.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
+					fi
+					
+					OLCSTARTTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCSTARTTIME)']/text()' step5.txt | xargs)"
+                    OLCLANDINGTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCLANDINGTIME)']/text()' step5.txt | xargs)"
 					
                     #If airfield is AUTO, get from table.
                     if [ "$AIRFIELD" == "AUTO" ]; then
-                        OLCAIRFIELD="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td[6]' step4.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
+                        OLCAIRFIELD="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCAIRFIELD)']/a/text()' step5.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
+                        #In some cases, airfield is contained in <span> element                          
+                        if [ "$OLCAIRFIELD" == "" ]; then
+                            OLCAIRFIELD="$(xmllint --xpath 'string(/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCAIRFIELD)']/a/span/@title)' step5.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
+						fi
                     else
                         OLCAIRFIELD="$AIRFIELD"
                     fi
@@ -166,7 +205,7 @@ function processPage
 
                 else
                     # Zero kilometers, flight probably not yet processed by OLC server
-                    log "Flug mit 0,00km: $OLCFLIGHTID,$OLCDATUM,$OLCPILOTNAME"
+                    log "Flug zu kurz: Flug $OLCFLIGHTID nur $OLCKILOMETER statt $KMLIMIT"
 
                 fi
             fi
@@ -181,6 +220,7 @@ function processPage
     rm step2.txt
     rm step3.txt
     rm step4.txt
+    rm step5.txt
 
     return 1
 
@@ -199,28 +239,51 @@ rm OLCraw.txt 2> /dev/null
 rm step2.txt 2> /dev/null
 rm step3.txt 2> /dev/null
 rm step4.txt 2> /dev/null
+rm step5.txt 2> /dev/null
 
 # Output config
 log "Config URL1: $URL1"
 log "Config URL2: $URL2"
 log "Config URL3: $URL3"
+log "Config URL4: $URL4"
+log "Config URL5: $URL5"
 log "Config AIRFIELD1: $AIRFIELD1"
 log "Config AIRFIELD2: $AIRFIELD2"
 log "Config AIRFIELD3: $AIRFIELD3"
+log "Config AIRFIELD4: $AIRFIELD4"
+log "Config AIRFIELD5: $AIRFIELD5"
 log "Config OLC2VEREINSFLIEGERURL1: $OLC2VEREINSFLIEGERURL1"
 log "Config OLC2VEREINSFLIEGERURL2: $OLC2VEREINSFLIEGERURL2"
 log "Config OLC2VEREINSFLIEGERURL3: $OLC2VEREINSFLIEGERURL3"
+log "Config OLC2VEREINSFLIEGERURL4: $OLC2VEREINSFLIEGERURL4"
+log "Config OLC2VEREINSFLIEGERURL5: $OLC2VEREINSFLIEGERURL5"
+log "Config TYPE1: $TYPE1"
+log "Config TYPE2: $TYPE2"
+log "Config TYPE3: $TYPE3"
+log "Config TYPE4: $TYPE4"
+log "Config TYPE5: $TYPE5"
+log "Config KMLIMIT1: $KMLIMIT1"
+log "Config KMLIMIT2: $KMLIMIT2"
+log "Config KMLIMIT3: $KMLIMIT3"
+log "Config KMLIMIT4: $KMLIMIT4"
+log "Config KMLIMIT5: $KMLIMIT5"
 log "Config RECEIVER1: $RECEIVER1"
 log "Config APPTOKEN: $APPTOKEN"
 
 # Process pages
 # All flights from URL 1
-processPage "$URL1" "$AIRFIELD1" "$OLC2VEREINSFLIEGERURL1"
+processPage "$URL1" "$AIRFIELD1" "$OLC2VEREINSFLIEGERURL1" "$TYPE1" "$KMLIMIT1"
 
 # All flights from URL 2
-processPage "$URL2" "$AIRFIELD2" "$OLC2VEREINSFLIEGERURL2"
+processPage "$URL2" "$AIRFIELD2" "$OLC2VEREINSFLIEGERURL2" "$TYPE2" "$KMLIMIT2"
 
 # All flights from URL 3
-processPage "$URL3" "$AIRFIELD3" "$OLC2VEREINSFLIEGERURL3"
+processPage "$URL3" "$AIRFIELD3" "$OLC2VEREINSFLIEGERURL3" "$TYPE3" "$KMLIMIT3"
+
+# All flights from URL 4
+processPage "$URL4" "$AIRFIELD4" "$OLC2VEREINSFLIEGERURL4" "$TYPE4" "$KMLIMIT4"
+
+# All flights from URL 5
+processPage "$URL5" "$AIRFIELD5" "$OLC2VEREINSFLIEGERURL5" "$TYPE5" "$KMLIMIT5"
 
 log "Processing done"
