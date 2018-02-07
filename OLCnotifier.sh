@@ -20,6 +20,7 @@
 # 1.3       15.09.2017  UN       Improve OLC-to-Vereinsflieger.de functionality
 # 1.4       18.09.2017  UN       Bugfix umlaute
 # 1.5       30.11.2017  UN       Add support for daily OLC pages with minimum KM value
+# 1.6       06.02.2018  UN       Cleanup whitespace
 #
 
 # Outputs a string to the logfile, including a timestamp.
@@ -49,13 +50,13 @@ function processPage
     local AIRFIELD="$2"
     local OLC2VEREINSFLIEGERURL="$3"
     local TYPE="$4"
-	local KMLIMIT="$5"
+    local KMLIMIT="$5"
 
     if [ "$URL" == "" ]; then
         outString = "No URL to process"
         return 0
     fi
-	
+
     if [ "$TYPE" == "DAILY" ]; then
         TD_OLCFLIGHTID=13
         TD_OLCKILOMETER=5
@@ -73,7 +74,6 @@ function processPage
         TD_OLCLANDINGTIME=9
         TD_OLCAIRFIELD=6
     fi
-	
 
     # Download OLC from URL to file
     log "Download: $URL"
@@ -89,7 +89,7 @@ function processPage
 
     # Remove unneeded end
     sed 's/<\/tbody>.*/<\/tbody>/' <step3.txt >step4.txt
-	
+
     # Remove not allowed entities nbsp
     sed 's/&nbsp;/ /g' step4.txt > step5.txt
 
@@ -121,34 +121,33 @@ function processPage
             if [ "$OLCFLIGHTID" != "" ]; then
                 # read rest of data. use xmllint with a xpath expression to find first <td> in i'th <tr>
                 OLCKILOMETER="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCKILOMETER)']/text()' step5.txt | xargs | sed 's/\.//'| sed 's/,/\./')"
-				
-				if [ $(echo "$OLCKILOMETER > $KMLIMIT" | bc) -eq 1 ]; then
+                if [ $(echo "$OLCKILOMETER > $KMLIMIT" | bc) -eq 1 ]; then
                     if [ "$TYPE" == "DAILY" ]; then
                         OLCDATUM="$(date +'%d.%m.%Y')"
                     else
                         OLCDATUM="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCDATUM)']/text()' step5.txt)"
                     fi
-					
+
                     OLCPILOTNAME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCPILOTNAME)']' step5.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
                     #In some cases, pilot name is contained in <span> element
-					if [ "$OLCPILOTNAME" == "" ]; then
-						OLCPILOTNAME="$(xmllint --xpath 'string(/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCPILOTNAME)']/span[@class="pilot"]/@title)' step5.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
-					fi
-					
-					OLCSTARTTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCSTARTTIME)']/text()' step5.txt | xargs)"
+                    if [ "$OLCPILOTNAME" == "" ]; then
+                      OLCPILOTNAME="$(xmllint --xpath 'string(/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCPILOTNAME)']/span[@class="pilot"]/@title)' step5.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
+                    fi
+
+                    OLCSTARTTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCSTARTTIME)']/text()' step5.txt | xargs)"
                     OLCLANDINGTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCLANDINGTIME)']/text()' step5.txt | xargs)"
-					
+
                     #If airfield is AUTO, get from table.
                     if [ "$AIRFIELD" == "AUTO" ]; then
                         OLCAIRFIELD="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCAIRFIELD)']/a/text()' step5.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
                         #In some cases, airfield is contained in <span> element                          
                         if [ "$OLCAIRFIELD" == "" ]; then
                             OLCAIRFIELD="$(xmllint --xpath 'string(/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCAIRFIELD)']/a/span/@title)' step5.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
-						fi
+                        fi
                     else
                         OLCAIRFIELD="$AIRFIELD"
                     fi
-				
+
                     # Replace umlaute
                     OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xFC;/ü/')
                     OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xE4;/ä/')
@@ -204,7 +203,7 @@ function processPage
                     fi
 
                 else
-                    # Zero kilometers, flight probably not yet processed by OLC server
+                    # flight too short (or maybe not yet processed by OLC server)
                     log "Flug zu kurz: Flug $OLCFLIGHTID nur $OLCKILOMETER statt $KMLIMIT"
 
                 fi
