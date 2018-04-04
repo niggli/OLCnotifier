@@ -21,7 +21,7 @@
 # 1.4       18.09.2017  UN       Bugfix umlaute
 # 1.5       30.11.2017  UN       Add support for daily OLC pages with minimum KM value
 # 1.6       06.02.2018  UN       Cleanup whitespace
-#
+# 2.0       04.04.2018  UN       Adapt everything to new OLC3.0 website layout
 
 # Outputs a string to the logfile, including a timestamp.
 # input: String to be output to logfile
@@ -58,13 +58,13 @@ function processPage
     fi
 
     if [ "$TYPE" == "DAILY" ]; then
-        TD_OLCFLIGHTID=13
-        TD_OLCKILOMETER=5
+        TD_OLCFLIGHTID=12
+        TD_OLCKILOMETER=4
         TD_OLCDATUM=1
         TD_OLCPILOTNAME=3
-        TD_OLCSTARTTIME=11
-        TD_OLCLANDINGTIME=12
-        TD_OLCAIRFIELD=8
+        TD_OLCSTARTTIME=10
+        TD_OLCLANDINGTIME=11
+        TD_OLCAIRFIELD=7
     else
         TD_OLCFLIGHTID=10
         TD_OLCKILOMETER=4
@@ -80,9 +80,9 @@ function processPage
     curl -o "OLCraw.txt" -s "$URL"
 
     # Search OLCPlus table
-    # sed works very differently on OSX and on Raspbian concerning the usage of "|" regexes. Workaround by two calls
-    sed -n '/<div id="list_OLC-Plus" class="tab">/, /<\/table>/p' OLCraw.txt >> step2.txt
-    sed -n '/<table class="list" id="dailyScore">/, /<\/table>/p' OLCraw.txt >> step2.txt        
+    # sed works very differently on OSX and on Raspbian concerning the usage of "|" regexes. Workaround by two calls.
+    sed -n '/<table id="table_OLC-Plus"/, /<\/table>/p' OLCraw.txt >> step2.txt # for CLUB types
+    sed -n '/<table id="distanceScoring"/, /<\/table>/p' OLCraw.txt >> step2.txt # for AIRFIELD and DAILY types
 
     # Remove unneeded begin
     sed -n '/<tbody>/, /<\/table>/p' step2.txt >> step3.txt
@@ -93,6 +93,9 @@ function processPage
     # Remove not allowed entities nbsp
     sed 's/&nbsp;/ /g' step4.txt > step5.txt
 
+    # Remove not valid XML tags <br>
+    sed 's/<br>/<br \/>/g' step5.txt > step6.txt
+
     # initialize variables
     OLCFLIGHTID="start"
     i=1
@@ -101,7 +104,7 @@ function processPage
     while [ "$OLCFLIGHTID" != "" ] ; do
 
         # search for flight ID. Length assumed to be between 1 and 10.
-        OLCFLIGHTID="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCFLIGHTID)']' step5.txt | grep -o '?dsId=[0-9]\{1,10\}\">' | grep -o '[0-9]\{1,10\}')"
+        OLCFLIGHTID="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCFLIGHTID)']' step6.txt | grep -o '?dsId=[0-9]\{1,10\}\">' | grep -o '[0-9]\{1,10\}')"
 
         # compare to entry in database file
         KNOWN=0
@@ -120,30 +123,21 @@ function processPage
         if [ "$KNOWN" = 0 ]; then
             if [ "$OLCFLIGHTID" != "" ]; then
                 # read rest of data. use xmllint with a xpath expression to find first <td> in i'th <tr>
-                OLCKILOMETER="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCKILOMETER)']/text()' step5.txt | xargs | sed 's/\.//'| sed 's/,/\./')"
+                OLCKILOMETER="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCKILOMETER)']/text()' step6.txt | xargs | sed 's/\.//'| sed 's/,/\./')"
                 if [ $(echo "$OLCKILOMETER > $KMLIMIT" | bc) -eq 1 ]; then
                     if [ "$TYPE" == "DAILY" ]; then
-                        OLCDATUM="$(date +'%d.%m.%Y')"
+                        OLCDATUM="$(date +'%Y-%m-%d')"
                     else
-                        OLCDATUM="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCDATUM)']/text()' step5.txt)"
+                        #format: dd.mm.yy, needs to be turned
+                        OLCDATUM_TEMP="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCDATUM)']/text()' step6.txt | xargs)"
+                        OLCDATUM="20${OLCDATUM_TEMP:6:2}-${OLCDATUM_TEMP:3:2}-${OLCDATUM_TEMP:0:2}"  
                     fi
 
-                    OLCPILOTNAME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCPILOTNAME)']' step5.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
-                    #In some cases, pilot name is contained in <span> element
-                    if [ "$OLCPILOTNAME" == "" ]; then
-                      OLCPILOTNAME="$(xmllint --xpath 'string(/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCPILOTNAME)']/span[@class="pilot"]/@title)' step5.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
-                    fi
-
-                    OLCSTARTTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCSTARTTIME)']/text()' step5.txt | xargs)"
-                    OLCLANDINGTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCLANDINGTIME)']/text()' step5.txt | xargs)"
+                    OLCPILOTNAME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCPILOTNAME)']/a/text()' step6.txt | xargs)"
 
                     #If airfield is AUTO, get from table.
                     if [ "$AIRFIELD" == "AUTO" ]; then
-                        OLCAIRFIELD="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCAIRFIELD)']/a/text()' step5.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
-                        #In some cases, airfield is contained in <span> element                          
-                        if [ "$OLCAIRFIELD" == "" ]; then
-                            OLCAIRFIELD="$(xmllint --xpath 'string(/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCAIRFIELD)']/a/span/@title)' step5.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
-                        fi
+                        OLCAIRFIELD="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCAIRFIELD)']/a/text()' step6.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
                     else
                         OLCAIRFIELD="$AIRFIELD"
                     fi
@@ -153,12 +147,11 @@ function processPage
                     OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xE4;/ä/')
                     OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xF6;/ö/')
 
-                    # Remove country code e.g. "Hans Muster (CH)"
-                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | grep -o "[A-Za-zäöüèé.-]\{1,\} [A-Za-zäöüéèà.-]\{1,\} [A-Za-zöäüéèà.-]\{0,\}" | xargs)
+                    # Remove country code e.g. "Schaenis (CH)" => "Schaenis"
                     OLCAIRFIELD=$(echo "$OLCAIRFIELD" | grep -o "[A-Za-z -]\{1,\}" | head -1 | xargs)
 
                     # generate link to flight
-                    OLCFLIGHTLINK="https://www.onlinecontest.org/olc-2.0/gliding/flightinfo.html?dsId=$OLCFLIGHTID"
+                    OLCFLIGHTLINK="https://www.onlinecontest.org/olc-3.0/gliding/flightinfo.html?dsId=$OLCFLIGHTID"
 
                     # write new flight to database
                     echo "$OLCFLIGHTID" >> private/database.txt
@@ -177,17 +170,22 @@ function processPage
 
                     # correct flight in vereinsflieger.de
                     if [[ "$OLC2VEREINSFLIEGERURL" != "" ]]; then
+
                         log "Send flight data to OLC2Vereinsflieger"
                         log "Download: $OLCFLIGHTLINK"
 
                         # Download flight page and extract plane callsign
                         curl -o "flightraw.txt" -s "$OLCFLIGHTLINK"
-                        sed -n '/<div id="aircraftinfo" class="tt" style="display:none;">/, /<div id="pilotinfo" class="tt" style="display:none;">/p' flightraw.txt >> flight2.txt
-                        sed 's/<div id="pilotinfo" class="tt" style="display:none;">//' <flight2.txt >flight3.txt
-                        OLCCALLSIGN="$(xmllint --xpath '/div/div/dl/dd[2]/text()' flight3.txt | xargs)"
+                        # Search range, since it exists twice quit when it ends with 'q' command
+                        sed -n '/<div class="dropdown-menu">/,/<\/div>/{p; /<\/div>/q;}' flightraw.txt >> flight2.txt
+                        OLCCALLSIGN="$(xmllint --xpath '/div/dl/dd[2]/text()' flight2.txt | xargs)"
                         
                         # Convert spaces in pilot name
                         OLCPILOTNAMEURL=$(echo "$OLCPILOTNAME" | sed 's/ /%20/g')
+
+                        # Get start- and landing time from OLC table
+                        OLCSTARTTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCSTARTTIME)']/text()' step6.txt | xargs)"
+                        OLCLANDINGTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCLANDINGTIME)']/text()' step6.txt | xargs)"
 
                         # Call OLC2vereinsflieger
                         log "Aufruf OLC2Vereinsflieger: $OLC2VEREINSFLIEGERURL?starttime=${OLCDATUM}T$OLCSTARTTIME:00&landingtime=${OLCDATUM}T$OLCLANDINGTIME:00&pilotname=$OLCPILOTNAMEURL&airfield=$OLCAIRFIELD&callsign=$OLCCALLSIGN"
@@ -197,7 +195,6 @@ function processPage
                         # Clean up
                         rm flightraw.txt
                         rm flight2.txt
-                        rm flight3.txt
                     else
                         log "Don't correct in Vereinsflieger."
                     fi
@@ -205,7 +202,6 @@ function processPage
                 else
                     # flight too short (or maybe not yet processed by OLC server)
                     log "Flug zu kurz: Flug $OLCFLIGHTID nur $OLCKILOMETER statt $KMLIMIT"
-
                 fi
             fi
         fi
@@ -220,6 +216,7 @@ function processPage
     rm step3.txt
     rm step4.txt
     rm step5.txt
+    rm step6.txt
 
     return 1
 
@@ -239,6 +236,9 @@ rm step2.txt 2> /dev/null
 rm step3.txt 2> /dev/null
 rm step4.txt 2> /dev/null
 rm step5.txt 2> /dev/null
+rm step6.txt 2> /dev/null
+rm flightraw.txt 2> /dev/null
+rm flight2.txt 2> /dev/null
 
 # Output config
 log "Config URL1: $URL1"
