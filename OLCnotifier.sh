@@ -22,6 +22,7 @@
 # 1.5       30.11.2017  UN       Add support for daily OLC pages with minimum KM value
 # 1.6       06.02.2018  UN       Cleanup whitespace
 # 2.0       04.04.2018  UN       Adapt everything to new OLC3.0 website layout
+# 2.1       05.04.2018  UN       Change format of date for notification text
 
 # Outputs a string to the logfile, including a timestamp.
 # input: String to be output to logfile
@@ -128,9 +129,7 @@ function processPage
                     if [ "$TYPE" == "DAILY" ]; then
                         OLCDATUM="$(date +'%Y-%m-%d')"
                     else
-                        #format: dd.mm.yy, needs to be turned
-                        OLCDATUM_TEMP="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCDATUM)']/text()' step6.txt | xargs)"
-                        OLCDATUM="20${OLCDATUM_TEMP:6:2}-${OLCDATUM_TEMP:3:2}-${OLCDATUM_TEMP:0:2}"  
+                        OLCDATUM="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCDATUM)']/text()' step6.txt | xargs)"
                     fi
 
                     OLCPILOTNAME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCPILOTNAME)']/a/text()' step6.txt | xargs)"
@@ -187,9 +186,12 @@ function processPage
                         OLCSTARTTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCSTARTTIME)']/text()' step6.txt | xargs)"
                         OLCLANDINGTIME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCLANDINGTIME)']/text()' step6.txt | xargs)"
 
+                        #format of OLCDATUM: dd.mm.yy, needs to be turned in american format yyyy-mm-dd for OLC2vereinsflieger
+                        OLCDATUM_AMERICAN="20${OLCDATUM:6:2}-${OLCDATUM:3:2}-${OLCDATUM:0:2}"
+
                         # Call OLC2vereinsflieger
-                        log "Aufruf OLC2Vereinsflieger: $OLC2VEREINSFLIEGERURL?starttime=${OLCDATUM}T$OLCSTARTTIME:00&landingtime=${OLCDATUM}T$OLCLANDINGTIME:00&pilotname=$OLCPILOTNAMEURL&airfield=$OLCAIRFIELD&callsign=$OLCCALLSIGN"
-                        curl "$OLC2VEREINSFLIEGERURL?starttime=${OLCDATUM}T$OLCSTARTTIME:00&landingtime=${OLCDATUM}T$OLCLANDINGTIME:00&pilotname=$OLCPILOTNAMEURL&airfield=$OLCAIRFIELD&callsign=$OLCCALLSIGN" \
+                        log "Aufruf OLC2Vereinsflieger: $OLC2VEREINSFLIEGERURL?starttime=${OLCDATUM_AMERICAN}T$OLCSTARTTIME:00&landingtime=${OLCDATUM_AMERICAN}T$OLCLANDINGTIME:00&pilotname=$OLCPILOTNAMEURL&airfield=$OLCAIRFIELD&callsign=$OLCCALLSIGN"
+                        curl "$OLC2VEREINSFLIEGERURL?starttime=${OLCDATUM_AMERICAN}T$OLCSTARTTIME:00&landingtime=${OLCDATUM_AMERICAN}T$OLCLANDINGTIME:00&pilotname=$OLCPILOTNAMEURL&airfield=$OLCAIRFIELD&callsign=$OLCCALLSIGN" \
                         >> OLCnotifier.log
 
                         # Clean up
