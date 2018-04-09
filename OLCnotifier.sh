@@ -23,6 +23,7 @@
 # 1.6       06.02.2018  UN       Cleanup whitespace
 # 2.0       04.04.2018  UN       Adapt everything to new OLC3.0 website layout
 # 2.1       05.04.2018  UN       Change format of date for notification text
+# 2.2       09.04.2018  UN       Add handling for airfield in <span>
 
 # Outputs a string to the logfile, including a timestamp.
 # input: String to be output to logfile
@@ -137,6 +138,10 @@ function processPage
                     #If airfield is AUTO, get from table.
                     if [ "$AIRFIELD" == "AUTO" ]; then
                         OLCAIRFIELD="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCAIRFIELD)']/a/text()' step6.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
+                        #In some cases, airfield is contained in <span> element                          
+ -                      if [ "$OLCAIRFIELD" == "" ]; then
+ -                          OLCAIRFIELD="$(xmllint --xpath 'string(/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCAIRFIELD)']/a/span/@title)' step6.txt | grep '^[ ]*[A-Za-z]\{1,\}' | xargs)"
+ -                      fi
                     else
                         OLCAIRFIELD="$AIRFIELD"
                     fi
