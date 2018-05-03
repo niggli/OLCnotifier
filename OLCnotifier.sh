@@ -25,6 +25,7 @@
 # 2.1       05.04.2018  UN       Change format of date for notification text
 # 2.2       09.04.2018  UN       Add handling for airfield in <span>
 # 2.3       21.04.2018  UN       Bugfix airfields with space
+# 2.4       02.05.2018  UN       Bugfix airfields with umlaut. Change date format.
 
 # Outputs a string to the logfile, including a timestamp.
 # input: String to be output to logfile
@@ -129,7 +130,7 @@ function processPage
                 OLCKILOMETER="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCKILOMETER)']/text()' step6.txt | xargs | sed 's/\.//'| sed 's/,/\./')"
                 if [ $(echo "$OLCKILOMETER > $KMLIMIT" | bc) -eq 1 ]; then
                     if [ "$TYPE" == "DAILY" ]; then
-                        OLCDATUM="$(date +'%Y-%m-%d')"
+                        OLCDATUM="$(date +'%d.%m.%Y')"
                     else
                         OLCDATUM="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCDATUM)']/text()' step6.txt | xargs)"
                     fi
@@ -151,9 +152,12 @@ function processPage
                     OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xFC;/ü/')
                     OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xE4;/ä/')
                     OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xF6;/ö/')
+                    OLCAIRFIELD=$(echo "$OLCAIRFIELD" | sed 's/&#xFC;/ü/')
+                    OLCAIRFIELD=$(echo "$OLCAIRFIELD" | sed 's/&#xE4;/ä/')
+                    OLCAIRFIELD=$(echo "$OLCAIRFIELD" | sed 's/&#xF6;/ö/')
 
                     # Remove country code e.g. "Schaenis (CH)" => "Schaenis"
-                    OLCAIRFIELD=$(echo "$OLCAIRFIELD" | grep -o "[A-Za-z -]\{1,\}" | head -1 | xargs)
+                    OLCAIRFIELD=$(echo "$OLCAIRFIELD" | grep -o "[A-Za-zäöüèé -]\{1,\}" | head -1 | xargs)
 
                     # generate link to flight
                     OLCFLIGHTLINK="https://www.onlinecontest.org/olc-3.0/gliding/flightinfo.html?dsId=$OLCFLIGHTID"
