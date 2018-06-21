@@ -26,6 +26,7 @@
 # 2.2       09.04.2018  UN       Add handling for airfield in <span>
 # 2.3       21.04.2018  UN       Bugfix airfields with space
 # 2.4       02.05.2018  UN       Bugfix airfields with umlaut. Change date format.
+# 2.5       18.06.2018  UN       Bugfix airfields and names with more than one occurence of an umlat
 
 # Outputs a string to the logfile, including a timestamp.
 # input: String to be output to logfile
@@ -149,12 +150,12 @@ function processPage
                     fi
 
                     # Replace umlaute
-                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xFC;/ü/')
-                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xE4;/ä/')
-                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xF6;/ö/')
-                    OLCAIRFIELD=$(echo "$OLCAIRFIELD" | sed 's/&#xFC;/ü/')
-                    OLCAIRFIELD=$(echo "$OLCAIRFIELD" | sed 's/&#xE4;/ä/')
-                    OLCAIRFIELD=$(echo "$OLCAIRFIELD" | sed 's/&#xF6;/ö/')
+                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xFC;/ü/g')
+                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xE4;/ä/g')
+                    OLCPILOTNAME=$(echo "$OLCPILOTNAME" | sed 's/&#xF6;/ö/g')
+                    OLCAIRFIELD=$(echo "$OLCAIRFIELD" | sed 's/&#xFC;/ü/g')
+                    OLCAIRFIELD=$(echo "$OLCAIRFIELD" | sed 's/&#xE4;/ä/g')
+                    OLCAIRFIELD=$(echo "$OLCAIRFIELD" | sed 's/&#xF6;/ö/g')
 
                     # Remove country code e.g. "Schaenis (CH)" => "Schaenis"
                     OLCAIRFIELD=$(echo "$OLCAIRFIELD" | grep -o "[A-Za-zäöüèé -]\{1,\}" | head -1 | xargs)
