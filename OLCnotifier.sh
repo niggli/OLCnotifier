@@ -26,7 +26,8 @@
 # 2.2       09.04.2018  UN       Add handling for airfield in <span>
 # 2.3       21.04.2018  UN       Bugfix airfields with space
 # 2.4       02.05.2018  UN       Bugfix airfields with umlaut. Change date format.
-# 2.5       18.06.2018  UN       Bugfix airfields and names with more than one occurence of an umlat
+# 2.5       18.06.2018  UN       Bugfix airfields and names with more than one occurence of an umlaut
+# 2.6       31.08.2018  UN       Adaption to changes in OLC HTML (formatting of number of kilometers)
 
 # Outputs a string to the logfile, including a timestamp.
 # input: String to be output to logfile
@@ -85,7 +86,6 @@ function processPage
     curl -o "OLCraw.txt" -s "$URL"
 
     # Search OLCPlus table
-    # sed works very differently on OSX and on Raspbian concerning the usage of "|" regexes. Workaround by two calls.
     sed -n '/<table id="table_OLC-Plus"/, /<\/table>/p' OLCraw.txt >> step2.txt # for CLUB types
     sed -n '/<table id="distanceScoring"/, /<\/table>/p' OLCraw.txt >> step2.txt # for AIRFIELD and DAILY types
 
@@ -128,7 +128,7 @@ function processPage
         if [ "$KNOWN" = 0 ]; then
             if [ "$OLCFLIGHTID" != "" ]; then
                 # read rest of data. use xmllint with a xpath expression to find first <td> in i'th <tr>
-                OLCKILOMETER="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCKILOMETER)']/text()' step6.txt | xargs | sed 's/\.//'| sed 's/,/\./')"
+                OLCKILOMETER="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCKILOMETER)']/text()' step6.txt | xargs)"
                 if [ $(echo "$OLCKILOMETER > $KMLIMIT" | bc) -eq 1 ]; then
                     if [ "$TYPE" == "DAILY" ]; then
                         OLCDATUM="$(date +'%d.%m.%Y')"
