@@ -28,6 +28,7 @@
 # 2.4       02.05.2018  UN       Bugfix airfields with umlaut. Change date format.
 # 2.5       18.06.2018  UN       Bugfix airfields and names with more than one occurence of an umlaut
 # 2.6       31.08.2018  UN       Adaption to changes in OLC HTML (formatting of number of kilometers)
+# 2.7       06.09.2018  UN       Reformat changed date format with sed
 
 # Outputs a string to the logfile, including a timestamp.
 # input: String to be output to logfile
@@ -133,7 +134,7 @@ function processPage
                     if [ "$TYPE" == "DAILY" ]; then
                         OLCDATUM="$(date +'%d.%m.%Y')"
                     else
-                        OLCDATUM="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCDATUM)']/text()' step6.txt | xargs)"
+                        OLCDATUM="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCDATUM)']/text()' step6.txt | xargs | sed 's/\//./g')"
                     fi
 
                     OLCPILOTNAME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCPILOTNAME)']/a/text()' step6.txt | xargs)"
