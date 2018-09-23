@@ -30,6 +30,7 @@
 # 2.6       31.08.2018  UN       Adaption to changes in OLC HTML (formatting of number of kilometers)
 # 2.7       06.09.2018  UN       Reformat changed date format with sed
 # 2.8       18.09.2018  UN       Reformat date format again for use with OLC2vereinsflieger
+# 2.9       23.09.2018  UN       Date format again. Differences between GNU and BSD date command.
 
 # Outputs a string to the logfile, including a timestamp.
 # input: String to be output to logfile
@@ -135,9 +136,12 @@ function processPage
                     if [ "$TYPE" == "DAILY" ]; then
                         OLCDATUM="$(date +'%d.%m.%y')"
                     else
-                        OLCDATUM_TEMP="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCDATUM)']/text()' step6.txt | xargs | sed 's/\//./g')"
+                        OLCDATUM_TEMP="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCDATUM)']/text()' step6.txt | xargs | sed 's/\./\//g')"
                         #convert OLC datumformat from m.d.yy to dd.mm.yy
-                        OLCDATUM="$(date -j -f '%m.%d.%y' +'%d.%m.%y' $OLCDATUM_TEMP)"
+						OLCDATUM="$(date --date=$OLCDATUM_TEMP +'%d.%m.%y')"
+						if [ "$OLCDATUM" == "" ]; then
+							OLCDATUM="$(date -j -f '%m/%d/%y' +'%d.%m.%y' $OLCDATUM_TEMP)"
+						fi
                     fi
 
                     OLCPILOTNAME="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCPILOTNAME)']/a/text()' step6.txt | xargs)"
