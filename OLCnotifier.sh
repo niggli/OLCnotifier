@@ -31,6 +31,8 @@
 # 2.7       06.09.2018  UN       Reformat changed date format with sed
 # 2.8       18.09.2018  UN       Reformat date format again for use with OLC2vereinsflieger
 # 2.9       23.09.2018  UN       Date format again. Differences between GNU and BSD date command.
+# 2.10      07.10.2018  UN       Correct parsing of kilometer value of flights with >1000km
+# 2.11      05.06.2019  UN       Adapt to changes of HTML structure in OLC website
 
 # Outputs a string to the logfile, including a timestamp.
 # input: String to be output to logfile
@@ -112,7 +114,7 @@ function processPage
     while [ "$OLCFLIGHTID" != "" ] ; do
 
         # search for flight ID. Length assumed to be between 1 and 10.
-        OLCFLIGHTID="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCFLIGHTID)']' step6.txt | grep -o '?dsId=[0-9]\{1,10\}\">' | grep -o '[0-9]\{1,10\}')"
+        OLCFLIGHTID="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCFLIGHTID)']' step6.txt | grep -o '?dsId=[0-9]\{1,10\}\">' | grep -o '[0-9]\{1,10\}' | head -n1)"
 
         # compare to entry in database file
         KNOWN=0
@@ -131,7 +133,7 @@ function processPage
         if [ "$KNOWN" = 0 ]; then
             if [ "$OLCFLIGHTID" != "" ]; then
                 # read rest of data. use xmllint with a xpath expression to find first <td> in i'th <tr>
-                OLCKILOMETER="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCKILOMETER)']/text()' step6.txt | xargs)"
+                OLCKILOMETER="$(xmllint --xpath '/tbody/tr['$(echo $i)']/td['$(echo $TD_OLCKILOMETER)']/text()' step6.txt | xargs | sed 's/\,//g')"
                 if [ $(echo "$OLCKILOMETER > $KMLIMIT" | bc) -eq 1 ]; then
                     if [ "$TYPE" == "DAILY" ]; then
                         OLCDATUM="$(date +'%d.%m.%y')"
