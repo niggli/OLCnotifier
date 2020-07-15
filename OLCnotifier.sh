@@ -33,6 +33,7 @@
 # 2.9       23.09.2018  UN       Date format again. Differences between GNU and BSD date command.
 # 2.10      07.10.2018  UN       Correct parsing of kilometer value of flights with >1000km
 # 2.11      05.06.2019  UN       Adapt to changes of HTML structure in OLC website
+# 2.12      15.07.2020  UN       Adapt to small change in HTML. Improve handling of config with errors
 
 # Outputs a string to the logfile, including a timestamp.
 # input: String to be output to logfile
@@ -42,8 +43,7 @@ function log
     local outString="$1"
 
     if [ "$outString" == "" ]; then
-        outString = "No string to log"
-        return 0
+        outString="Error: No string to log"
     fi
 
     # output timestamp and string
@@ -64,7 +64,7 @@ function processPage
     local KMLIMIT="$5"
 
     if [ "$URL" == "" ]; then
-        outString = "No URL to process"
+        log "Error: No URL to process"
         return 0
     fi
 
@@ -196,9 +196,14 @@ function processPage
 
                         # Download flight page and extract plane callsign
                         curl -o "flightraw.txt" -s "$OLCFLIGHTLINK"
+                        
                         # Search range, since it exists twice quit when it ends with 'q' command
                         sed -n '/<div class="dropdown-menu">/,/<\/div>/{p; /<\/div>/q;}' flightraw.txt >> flight2.txt
-                        OLCCALLSIGN="$(xmllint --xpath '/div/dl/dd[2]/text()' flight2.txt | xargs)"
+                        
+                        # Remove unneeded beginning
+                        sed 's/<b>.*<\/a>,//' <flight2.txt >flight3.txt
+
+                        OLCCALLSIGN="$(xmllint --xpath '/div/dl/dd[2]/text()' flight3.txt | xargs)"
                         
                         # Convert spaces in pilot name
                         OLCPILOTNAMEURL=$(echo "$OLCPILOTNAME" | sed 's/ /%20/g')
@@ -221,6 +226,7 @@ function processPage
                         # Clean up
                         rm flightraw.txt
                         rm flight2.txt
+                        rm flight3.txt
                     else
                         log "Don't correct in Vereinsflieger."
                     fi
@@ -243,6 +249,9 @@ function processPage
     rm step4.txt
     rm step5.txt
     rm step6.txt
+    rm flightraw.txt
+    rm flight2.txt
+    rm flight3.txt
 
     return 1
 
@@ -265,6 +274,7 @@ rm step5.txt 2> /dev/null
 rm step6.txt 2> /dev/null
 rm flightraw.txt 2> /dev/null
 rm flight2.txt 2> /dev/null
+rm flight3.txt 2> /dev/null
 
 # Output config
 log "Config URL1: $URL1"
