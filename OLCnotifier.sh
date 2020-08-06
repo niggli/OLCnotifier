@@ -34,6 +34,7 @@
 # 2.10      07.10.2018  UN       Correct parsing of kilometer value of flights with >1000km
 # 2.11      05.06.2019  UN       Adapt to changes of HTML structure in OLC website
 # 2.12      15.07.2020  UN       Adapt to small change in HTML. Improve handling of config with errors
+# 2.13      06.08.2020  UN       Add OLC2Vereinsflieger call with local PHP file
 
 # Outputs a string to the logfile, including a timestamp.
 # input: String to be output to logfile
