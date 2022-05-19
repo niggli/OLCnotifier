@@ -1,6 +1,8 @@
 Readme
 =======
 
+# At the moment (19.5.2022) this script doesn't work anymore, the reason with a high probability is a HTML change on onlinecontest.org. Since I am focussing on Weglide I am not going to investigate this, but I'm sure it's not a big deal if you want to do it.
+
 Checks onlinecontest.org for new interesting flights and informs the subscribers via pushover push notifications. Features:
 
 - Able to process club, airfield and "daily" OLC URLs
